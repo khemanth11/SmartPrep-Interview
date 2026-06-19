@@ -1,0 +1,16 @@
+# Build tool directories
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE configurations
+.idea/
+.vscode/
+*.iml
+*.iws
+
+# System and temp files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+Project_Working.md

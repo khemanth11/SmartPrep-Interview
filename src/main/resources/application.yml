@@ -1,0 +1,13 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: CIP
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/cip_db}
+
+jwt:
+  secret: ${JWT_SECRET:dGhpcy1pcy1hLXNlY3VyZS1hbmQtc3Ryb25nLXNlY3JldC1rZXktZm9yLWNpcC1wbGF0Zm9ybS1qd3Qtc2lnbmluZy1tdXN0LWJlLTI1Ni1iaXRz}
+  expiration: 86400000
