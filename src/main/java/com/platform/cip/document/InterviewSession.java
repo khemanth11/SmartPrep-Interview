@@ -32,6 +32,7 @@ public class InterviewSession {
     private Integer communicationScore;
 
     private Integer domainKnowledgeScore;
+    private String feedback;
     private List<ChatMessage> messages;
 
     @Builder.Default
