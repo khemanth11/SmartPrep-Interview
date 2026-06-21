@@ -15,4 +15,6 @@ public class InterviewSessionRequest {
     private String role;
 
     private String problemId;
+
+    private String resumeText;
 }

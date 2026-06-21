@@ -97,15 +97,16 @@ export async function getProblemById(id: string, token: string): Promise<Problem
     return res.json();
 }
 
-export async function createInterviewSession(role: string, problemId: string | null, token: string): Promise<InterviewSession> {
+export async function createInterviewSession(role: string, problemId: string | null, token: string, resumeText?: string | null): Promise<InterviewSession> {
     const res = await fetch(`${BASE_URL}/interviews`, {
         method: 'POST',
         headers: getHeaders(token),
-        body: JSON.stringify({ role, problemId }),
+        body: JSON.stringify({ role, problemId, resumeText }),
     });
     if (!res.ok) throw new Error('Failed to start interview session');
     return res.json();
 }
+
 
 export async function getSessionHistory(token: string): Promise<InterviewSession[]> {
     const res = await fetch(`${BASE_URL}/interviews`, {
@@ -191,4 +192,23 @@ export async function streamChatMessage(
     } catch (error) {
         onError(error);
     }
+}
+
+export async function parseResume(file: File, token: string): Promise<{ text: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const headers: HeadersInit = {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch(`${BASE_URL}/interviews/parse-resume`, {
+        method: 'POST',
+        headers,
+        body: formData,
+    });
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to parse resume');
+    }
+    return res.json();
 }

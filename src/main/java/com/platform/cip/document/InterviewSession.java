@@ -26,6 +26,8 @@ public class InterviewSession {
 
     private String role;
 
+    private String resumeText;
+
     @Builder.Default
     private String status = "IN_PROGRESS";
 

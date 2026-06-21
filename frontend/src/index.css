@@ -279,3 +279,320 @@ select.input-field option {
   background: var(--bg-secondary);
   color: var(--text-primary);
 }
+
+/* ==========================================================================
+   Interactive Voice Call Mode Styles
+   ========================================================================== */
+
+/* Fullscreen Immersive Container */
+.call-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at center, #11131f 0%, #06070a 100%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 32px;
+  animation: fadeIn 0.4s ease;
+}
+
+/* Call Status & Role Header */
+.call-header {
+  text-align: center;
+  margin-top: 16px;
+}
+
+.call-header h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.call-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  color: var(--accent-violet);
+  font-weight: 500;
+}
+
+.call-status.listening {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: var(--accent-emerald);
+}
+
+.call-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-violet);
+}
+
+.call-status.listening .call-status-dot {
+  background-color: var(--accent-emerald);
+  animation: pulseGlow 1.5s infinite alternate;
+}
+
+/* Speaker Avatar Card */
+.avatar-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 200px;
+  height: 200px;
+  margin: auto;
+}
+
+.avatar-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid rgba(139, 92, 246, 0.2);
+  transition: var(--transition-smooth);
+}
+
+.avatar-ring.active-speaking {
+  animation: rippleGlow 2s infinite ease-out;
+  border-color: var(--accent-violet);
+}
+
+.interviewer-avatar {
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%);
+  border: 2px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  transition: var(--transition-smooth);
+}
+
+.interviewer-avatar.speaking {
+  border-color: var(--accent-violet);
+  box-shadow: 0 0 35px var(--accent-violet-glow);
+}
+
+/* Audio Wave Visualizer */
+.audio-visualizer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  margin-top: 24px;
+}
+
+.visualizer-bar {
+  width: 4px;
+  height: 8px;
+  background-color: var(--text-muted);
+  border-radius: 2px;
+  transition: var(--transition-smooth);
+}
+
+.speaking .visualizer-bar {
+  background-color: var(--accent-violet);
+  animation: bounceWave 1.2s infinite ease-in-out;
+}
+
+.speaking .visualizer-bar:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.speaking .visualizer-bar:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.speaking .visualizer-bar:nth-child(4) {
+  animation-delay: 0.45s;
+}
+
+.speaking .visualizer-bar:nth-child(5) {
+  animation-delay: 0.6s;
+}
+
+.listening .visualizer-bar {
+  background-color: var(--accent-emerald);
+  animation: bounceWave 0.8s infinite ease-in-out;
+}
+
+.listening .visualizer-bar:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.listening .visualizer-bar:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.listening .visualizer-bar:nth-child(4) {
+  animation-delay: 0.3s;
+}
+
+.listening .visualizer-bar:nth-child(5) {
+  animation-delay: 0.4s;
+}
+
+/* Real-Time Caption Container */
+.caption-card {
+  width: 100%;
+  max-width: 650px;
+  min-height: 100px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.caption-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.caption-text {
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+/* Call Control Buttons Bar */
+.call-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(15, 17, 26, 0.8);
+  border: 1px solid var(--glass-border);
+  padding: 12px 24px;
+  border-radius: 40px;
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(12px);
+}
+
+.btn-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-circle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.btn-circle.active {
+  background: var(--accent-violet);
+  border-color: var(--accent-violet);
+  box-shadow: 0 0 15px var(--accent-violet-glow);
+}
+
+.btn-circle.danger {
+  background: var(--accent-rose);
+  border-color: var(--accent-rose);
+}
+
+.btn-circle.danger:hover {
+  background: #e11d48;
+}
+
+/* Slide-out Sidebar for Chat Log */
+.call-sidebar {
+  position: fixed;
+  top: 0;
+  right: -380px;
+  width: 380px;
+  height: 100vh;
+  background: #0f111a;
+  border-left: 1px solid var(--glass-border);
+  z-index: 1100;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+}
+
+.call-sidebar.open {
+  right: 0;
+}
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Animation Keyframes */
+@keyframes rippleGlow {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.15);
+    opacity: 0.3;
+    box-shadow: 0 0 30px var(--accent-violet-glow);
+  }
+
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+@keyframes bounceWave {
+
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  50% {
+    transform: scaleY(3.5);
+  }
+}

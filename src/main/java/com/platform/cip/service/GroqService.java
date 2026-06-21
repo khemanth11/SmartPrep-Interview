@@ -56,7 +56,7 @@ public class GroqService {
     /**
      * Streams the interviewer's response token-by-token using SSE.
      */
-    public Flux<String> streamInterviewerResponse(List<ChatMessage> history, String role) {
+    public Flux<String> streamInterviewerResponse(List<ChatMessage> history, String role, String resumeText) {
         String systemPrompt = String.format(
                 """
                         You are a real-world, conversational technical interviewer for a %s position.
@@ -330,6 +330,14 @@ public class GroqService {
                         """,
                 role);
 
+        if (resumeText != null && !resumeText.trim().isEmpty()) {
+            systemPrompt += "\n\n=========================\nCANDIDATE'S RESUME & PROJECTS\n=========================\n"
+                    + "The candidate has uploaded a resume/project profile. You MUST customize the interview using their actual experiences, projects, and skills listed below. "
+                    + "Ask them specific, project-oriented questions (e.g. why they made certain architectural or database choices in their listed projects, what challenges they faced, etc.). "
+                    + "Ensure that your questions are not generic, but relate directly to their specific achievements, tech stack, and role-related domain knowledge from the resume: \n\n"
+                    + resumeText;
+        }
+
         List<Map<String, String>> messages = new ArrayList<>();
         messages.add(Map.of("role", "system", "content", systemPrompt));
 
@@ -366,21 +374,19 @@ public class GroqService {
      * Evaluates the entire transcript synchronously, returning a structured
      * scorecard.
      */
-    public InterviewEvaluation evaluateSession(List<ChatMessage> history, String role) {
+    public InterviewEvaluation evaluateSession(List<ChatMessage> history, String role, String resumeText) {
         String systemPrompt = String.format(
                 "You are a senior technical hiring manager reviewing a candidate's mock interview transcript for the position of: %s. "
-                        +
-                        "Analyze the dialogue and return a constructive, comprehensive scorecard in strict JSON format. "
-                        +
-                        "Do not write any introductory or explanatory text. Your entire response must be a single parseable JSON object matching this structure: "
-                        +
-                        "{\n" +
+                        + "The candidate's uploaded resume/projects context was: \n%s\n\n"
+                        + "Analyze the dialogue and return a constructive, comprehensive scorecard in strict JSON format. "
+                        + "Do not write any introductory or explanatory text. Your entire response must be a single parseable JSON object matching this structure: "
+                        + "{\n" +
                         "  \"communicationScore\": <0-100 integer>,\n" +
                         "  \"domainKnowledgeScore\": <0-100 integer>,\n" +
-                        "  \"feedback\": \"<Detailed strengths, weaknesses, and clear actionable points for improvement>\"\n"
-                        +
-                        "}",
-                role);
+                        "  \"feedback\": \"<Detailed strengths, weaknesses, and clear actionable points for improvement. Critically review how they discussed their projects and resume claims.>\"\n"
+                        + "}",
+                role,
+                (resumeText != null ? resumeText : "None provided"));
 
         StringBuilder transcriptBuilder = new StringBuilder();
         for (ChatMessage msg : history) {

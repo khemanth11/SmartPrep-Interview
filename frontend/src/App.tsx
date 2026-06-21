@@ -13,8 +13,12 @@ import {
     Award,
     ChevronRight,
     Loader2,
-    BookOpen
+    BookOpen,
+    PhoneOff,
+    Menu,
+    X
 } from 'lucide-react';
+
 import {
     login,
     register,
@@ -22,6 +26,7 @@ import {
     getSessionHistory,
     endInterviewSession,
     streamChatMessage,
+    parseResume,
     type ChatMessage,
     type InterviewSession
 } from './services/api'
@@ -81,6 +86,28 @@ function App() {
     const chatEndRef = useRef<HTMLDivElement>(null);
     const recognitionRef = useRef<any>(null);
 
+    // Voice Call Mode States
+    const [interviewMode, setInterviewMode] = useState<'chat' | 'voice'>('chat');
+    const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [transcribedText, setTranscribedText] = useState('Listening...');
+    const [aiSpokenText, setAiSpokenText] = useState('');
+
+    // Voice Call Refs
+    const silenceTimeoutRef = useRef<any>(null);
+    const autoRecognitionRef = useRef<any>(null);
+    const isMutedRef = useRef<boolean>(false);
+    const voiceModeActiveRef = useRef<boolean>(false);
+    const ttsUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+    // Resume State
+    const [resumeText, setResumeText] = useState<string | null>(null);
+    const [resumeFileName, setResumeFileName] = useState<string | null>(null);
+    const [uploadingResume, setUploadingResume] = useState(false);
+
+
+
     //auto-scroll chat to the bottom on new messages
     useEffect(() => {
         chatEndRef.current?.scrollIntoView(
@@ -98,6 +125,81 @@ function App() {
         }
     }, [token])
 
+    // Cleanup Web Speech API resources on unmount/route exit
+    useEffect(() => {
+        return () => {
+            window.speechSynthesis.cancel();
+            if (silenceTimeoutRef.current) {
+                clearTimeout(silenceTimeoutRef.current);
+            }
+            if (autoRecognitionRef.current) {
+                try {
+                    autoRecognitionRef.current.stop();
+                } catch (e) {
+                    // Ignore
+                }
+            }
+        };
+    }, []);
+
+    const enterFullscreen = () => {
+        try {
+            const docEl = document.documentElement;
+            if (docEl.requestFullscreen) {
+                docEl.requestFullscreen();
+            } else if ((docEl as any).webkitRequestFullscreen) {
+                (docEl as any).webkitRequestFullscreen();
+            } else if ((docEl as any).msRequestFullscreen) {
+                (docEl as any).msRequestFullscreen();
+            }
+        } catch (err) {
+            console.warn("Fullscreen request failed", err);
+        }
+    };
+
+    const exitFullscreen = () => {
+        try {
+            if (document.fullscreenElement) {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if ((document as any).webkitExitFullscreen) {
+                    (document as any).webkitExitFullscreen();
+                } else if ((document as any).msExitFullscreen) {
+                    (document as any).msExitFullscreen();
+                }
+            }
+        } catch (err) {
+            console.warn("Fullscreen exit failed", err);
+        }
+    };
+
+    const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !token) return;
+        setUploadingResume(true);
+        try {
+            const result = await parseResume(file, token);
+            setResumeText(result.text);
+            setResumeFileName(file.name);
+        } catch (err: any) {
+            console.error(err);
+            alert(err.message || 'Failed to upload or parse resume.');
+        } finally {
+            setUploadingResume(false);
+        }
+    };
+
+    const handleClearResume = () => {
+        setResumeText(null);
+        setResumeFileName(null);
+        const input = document.getElementById('resume-file-input') as HTMLInputElement;
+        if (input) {
+            input.value = '';
+        }
+    };
+
+
+
     const fetchHistory = async () => {
         if (!token) return;
         try {
@@ -113,6 +215,9 @@ function App() {
         setToken(null);
         setUsername(null);
         setView('auth');
+        window.speechSynthesis.cancel();
+        voiceModeActiveRef.current = false;
+        stopVoiceListening();
     }
 
     //authentication handles
@@ -149,10 +254,17 @@ function App() {
         if (!token || !role.trim()) return;
         setSessionLoading(true);
         try {
-            const session = await createInterviewSession(role, null, token);
+            const session = await createInterviewSession(role, null, token, resumeText);
             setActiveSession(session);
             setChatMessages(session.messages || []);
             setView('interview');
+
+            // Fullscreen trigger for voice mode
+            if (interviewMode === 'voice') {
+                voiceModeActiveRef.current = true;
+                enterFullscreen();
+            }
+
             // Trigger first question by sending a system prompt indicator
             setTimeout(() => triggerAiPrompt(session.id, "Hello! I am ready to start the interview."), 200);
         } catch (err) {
@@ -162,6 +274,7 @@ function App() {
             setSessionLoading(false);
         }
     };
+
     const handleViewScorecard = async (session: InterviewSession) => {
         setActiveSession(session);
         setView('scorecard');
@@ -172,6 +285,7 @@ function App() {
         if (!confirmEnd) return;
 
         setSessionLoading(true);
+        exitFullscreen(); // Make sure to exit fullscreen
         try {
             const completedSession = await endInterviewSession(activeSession.id, token);
             setActiveSession(completedSession);
@@ -185,9 +299,11 @@ function App() {
         }
     };
 
+
     const handleAutoEndInterview = async () => {
         if (!token || !activeSession) return;
         setSessionLoading(true);
+        exitFullscreen(); // Make sure to exit fullscreen
         try {
             const completedSession = await endInterviewSession(activeSession.id, token);
             setActiveSession(completedSession);
@@ -258,6 +374,247 @@ function App() {
         // Call the streaming engine
         triggerAiPrompt(activeSession.id, userMessage);
     };
+
+    // -------------------------------------------------------------
+    // INTERACTIVE VOICE CALL LOGIC (TTS & STT AUTO-SUBMIT)
+    // -------------------------------------------------------------
+
+    // Text-to-Speech (TTS) Engine
+    const speakText = (text: string, onEnd?: () => void) => {
+        window.speechSynthesis.cancel(); // cancel any active speech
+
+        if (!text) {
+            onEnd?.();
+            return;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        const voices = window.speechSynthesis.getVoices();
+
+        // Pick Google US English or standard English voice if available
+        const englishVoice = voices.find(v =>
+            v.lang.startsWith('en-US') && v.name.includes('Google')
+        ) || voices.find(v =>
+            v.lang.startsWith('en')
+        );
+
+        if (englishVoice) utterance.voice = englishVoice;
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+
+        utterance.onstart = () => {
+            setIsAiSpeaking(true);
+            setAiSpokenText(text);
+        };
+
+        utterance.onend = () => {
+            setIsAiSpeaking(false);
+            onEnd?.();
+        };
+
+        utterance.onerror = (e) => {
+            console.error('TTS error', e);
+            setIsAiSpeaking(false);
+            onEnd?.();
+        };
+
+        ttsUtteranceRef.current = utterance;
+        window.speechSynthesis.speak(utterance);
+    };
+
+    // Speech-to-Text (STT) automated microphone listening
+    const startVoiceListening = () => {
+        stopVoiceListening();
+
+        if (isMutedRef.current || !voiceModeActiveRef.current) return;
+
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            console.error('Speech Recognition not supported in this browser');
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        let finalTranscript = '';
+
+        recognition.onstart = () => {
+            setIsRecording(true);
+            setTranscribedText('Listening...');
+        };
+
+        recognition.onresult = (event: any) => {
+            let interimTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript + ' ';
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+
+            const currentText = finalTranscript.trim() + (interimTranscript ? ' ' + interimTranscript : '');
+            if (currentText) {
+                setTranscribedText(currentText);
+            }
+
+            // Clear and reset 1.8 seconds silence threshold for natural speaking gaps
+            if (silenceTimeoutRef.current) {
+                clearTimeout(silenceTimeoutRef.current);
+            }
+            silenceTimeoutRef.current = setTimeout(() => {
+                const finalAnswer = finalTranscript.trim();
+                if (finalAnswer) {
+                    recognition.stop();
+                    submitVoiceAnswer(finalAnswer);
+                }
+            }, 1800);
+        };
+
+        recognition.onerror = (event: any) => {
+            console.error('STT error', event.error);
+            if (event.error === 'no-speech') {
+                // Restart listener if mic times out due to silence
+                setTimeout(() => {
+                    if (voiceModeActiveRef.current && !isAiSpeaking) {
+                        startVoiceListening();
+                    }
+                }, 500);
+            } else {
+                setIsRecording(false);
+            }
+        };
+
+        recognition.onend = () => {
+            setIsRecording(false);
+        };
+
+        autoRecognitionRef.current = recognition;
+        recognition.start();
+    };
+
+    const stopVoiceListening = () => {
+        if (silenceTimeoutRef.current) {
+            clearTimeout(silenceTimeoutRef.current);
+            silenceTimeoutRef.current = null;
+        }
+        if (autoRecognitionRef.current) {
+            try {
+                autoRecognitionRef.current.stop();
+            } catch (e) { }
+            autoRecognitionRef.current = null;
+        }
+        setIsRecording(false);
+    };
+
+    const submitVoiceAnswer = (answer: string) => {
+        if (!activeSession || !token) return;
+        setChatMessages(prev => [...prev, { sender: 'USER', message: answer }]);
+        setTranscribedText('Processing answer...');
+        triggerVoiceAiPrompt(activeSession.id, answer);
+    };
+
+    // Voice-exclusive AI Streaming endpoint
+    const triggerVoiceAiPrompt = async (sessionId: string, initialMsg: string) => {
+        if (!token) return;
+        setIsStreaming(true);
+
+        setChatMessages(prev => [...prev, { sender: 'AI', message: '' }]);
+        let fullAiMessage = '';
+
+        await streamChatMessage(
+            sessionId,
+            initialMsg,
+            token,
+            (textChunk) => {
+                setChatMessages(prev => {
+                    if (prev.length === 0) return prev;
+                    const lastMsg = prev[prev.length - 1];
+                    if (lastMsg && lastMsg.sender === 'AI') {
+                        fullAiMessage = lastMsg.message + textChunk;
+                        return [...prev.slice(0, -1), { ...lastMsg, message: fullAiMessage }];
+                    }
+                    return prev;
+                });
+            },
+            () => {
+                setIsStreaming(false);
+
+                // End evaluation check
+                if (fullAiMessage.includes('[INTERVIEW_OVER]')) {
+                    const cleanMessage = fullAiMessage.replace('[INTERVIEW_OVER]', '').trim();
+                    setChatMessages(prev => {
+                        if (prev.length === 0) return prev;
+                        const lastMsg = prev[prev.length - 1];
+                        if (lastMsg && lastMsg.sender === 'AI') {
+                            return [...prev.slice(0, -1), { ...lastMsg, message: cleanMessage }];
+                        }
+                        return prev;
+                    });
+                    speakText(cleanMessage, () => {
+                        stopVoiceListening();
+                        setTimeout(() => handleAutoEndInterview(), 100);
+                    });
+                    return;
+                }
+
+                // Speak and then start recording candidate response
+                speakText(fullAiMessage, () => {
+                    startVoiceListening();
+                });
+            },
+            (err) => {
+                console.error(err);
+                setIsStreaming(false);
+                setChatMessages(prev => [...prev, { sender: 'AI', message: 'Failed to receive response stream.' }]);
+                speakText('Sorry, I encountered a connection error. Please try again.', () => {
+                    startVoiceListening();
+                });
+            }
+        );
+    };
+
+    // Seamless toggling during active sessions
+    const toggleInterviewMode = () => {
+        if (interviewMode === 'chat') {
+            setInterviewMode('voice');
+            voiceModeActiveRef.current = true;
+            enterFullscreen(); // Enter fullscreen on switch
+
+            const lastMsg = chatMessages[chatMessages.length - 1];
+            if (lastMsg && lastMsg.sender === 'AI') {
+                speakText(lastMsg.message, () => {
+                    startVoiceListening();
+                });
+            } else {
+                startVoiceListening();
+            }
+        } else {
+            setInterviewMode('chat');
+            voiceModeActiveRef.current = false;
+            exitFullscreen(); // Exit fullscreen on switch back
+            window.speechSynthesis.cancel();
+            stopVoiceListening();
+        }
+    };
+
+
+    const toggleMute = () => {
+        isMutedRef.current = !isMutedRef.current;
+        setIsMuted(isMutedRef.current);
+        if (isMutedRef.current) {
+            stopVoiceListening();
+            setTranscribedText('Microphone muted.');
+        } else {
+            if (!isAiSpeaking && voiceModeActiveRef.current) {
+                startVoiceListening();
+            }
+        }
+    };
+
 
     // speech to text (web speech api)
     const toggleRecording = () => {
@@ -438,6 +795,119 @@ function App() {
                                         </select>
                                     </div>
 
+                                    {/* Resume Upload Field */}
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                                            Upload Resume / Project Profile (PDF or TXT, optional)
+                                        </label>
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                            <input
+                                                type="file"
+                                                accept=".pdf,.txt"
+                                                onChange={handleResumeUpload}
+                                                style={{ display: 'none' }}
+                                                id="resume-file-input"
+                                            />
+                                            <label
+                                                htmlFor="resume-file-input"
+                                                className="btn-secondary"
+                                                style={{
+                                                    flex: 1,
+                                                    padding: '10px',
+                                                    fontSize: '0.875rem',
+                                                    cursor: 'pointer',
+                                                    textAlign: 'center',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '8px'
+                                                }}
+                                            >
+                                                {uploadingResume ? (
+                                                    <>
+                                                        <Loader2 className="animate-spin" size={16} />
+                                                        Parsing Resume...
+                                                    </>
+                                                ) : resumeFileName ? (
+                                                    "Change Resume"
+                                                ) : (
+                                                    "Upload Resume"
+                                                )}
+                                            </label>
+                                            {resumeFileName && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleClearResume}
+                                                    className="btn-secondary"
+                                                    style={{
+                                                        padding: '10px',
+                                                        borderColor: 'var(--accent-rose)',
+                                                        color: 'var(--accent-rose)',
+                                                        fontSize: '0.875rem'
+                                                    }}
+                                                >
+                                                    Clear
+                                                </button>
+                                            )}
+                                        </div>
+                                        {resumeFileName && (
+                                            <p style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', marginTop: '6px' }}>
+                                                ✓ Selected: {resumeFileName}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Interview Mode</label>
+                                        <div style={{ display: 'flex', gap: '12px' }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setInterviewMode('chat')}
+                                                style={{
+                                                    flex: 1,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '8px',
+                                                    background: interviewMode === 'chat' ? 'rgba(139, 92, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                                                    border: `1px solid ${interviewMode === 'chat' ? 'var(--accent-violet)' : 'var(--glass-border)'}`,
+                                                    color: interviewMode === 'chat' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                                    padding: '12px',
+                                                    borderRadius: '8px',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 500,
+                                                    fontSize: '0.875rem',
+                                                    transition: 'var(--transition-smooth)'
+                                                }}
+                                            >
+                                                <MessageSquare size={16} /> Text Chat
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setInterviewMode('voice')}
+                                                style={{
+                                                    flex: 1,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '8px',
+                                                    background: interviewMode === 'voice' ? 'rgba(139, 92, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                                                    border: `1px solid ${interviewMode === 'voice' ? 'var(--accent-violet)' : 'var(--glass-border)'}`,
+                                                    color: interviewMode === 'voice' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                                    padding: '12px',
+                                                    borderRadius: '8px',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 500,
+                                                    fontSize: '0.875rem',
+                                                    transition: 'var(--transition-smooth)'
+                                                }}
+                                            >
+                                                <Mic size={16} /> Voice Call Mode
+                                            </button>
+                                        </div>
+                                    </div>
+
+
                                     <button
                                         onClick={() => handleStartInterview(roleInput)}
                                         className="btn-primary"
@@ -521,68 +991,183 @@ function App() {
 
                 {/* view 3 active mock interview session */}
                 {view === 'interview' && activeSession && (
-                    <div style={{ width: '100%', maxWidth: '800px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                        <div className="glass-card" style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', paddingBottom: '16px', marginBottom: '16px' }}>
-                                <div>
-                                    <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{activeSession.role} Mock Interview</h2>
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Status: <strong>Active Q&A Session</strong></span>
+                    interviewMode === 'voice' ? (
+                        /* Immersive Voice Call Mode View Overlay */
+                        <div className="call-overlay">
+                            <div className="call-header">
+                                <h1>{activeSession.role} Mock Interview</h1>
+                                <div className={`call-status ${isRecording ? 'listening' : ''}`}>
+                                    <div className="call-status-dot"></div>
+                                    <span>{isStreaming ? 'Interviewer is speaking...' : (isRecording ? 'Listening to you...' : 'Muted')}</span>
                                 </div>
-                                <button onClick={handleEndInterview} className="btn-secondary" style={{ borderColor: 'var(--accent-rose)', color: 'var(--accent-rose)' }}>
-                                    End & Evaluate
-                                </button>
                             </div>
-                            {/* Chat Log Panel */}
-                            <div className="chat-container">
-                                {chatMessages.length === 0 ? (
-                                    <div style={{ textAlign: 'center', margin: 'auto', color: 'var(--text-muted)' }}>
-                                        <Loader2 className="animate-spin" style={{ margin: 'auto', marginBottom: '8px' }} />
-                                        <p style={{ fontSize: '0.875rem' }}>Initializing AI interviewer context...</p>
-                                    </div>
-                                ) : (
-                                    chatMessages.map((msg, index) => (
-                                        <div key={index} className={`chat-bubble ${msg.sender.toLowerCase()}`}>
-                                            <strong>{msg.sender === 'AI' ? 'Interviewer' : 'You'}:</strong>
-                                            <p style={{ marginTop: '4px', whiteSpace: 'pre-wrap' }}>
-                                                {msg.message || (isStreaming && index === chatMessages.length - 1 ? '●' : '')}
-                                            </p>
-                                        </div>
-                                    ))
-                                )}
-                                <div ref={chatEndRef} />
+
+                            <div className="avatar-wrapper">
+                                <div className={`avatar-ring ${isAiSpeaking ? 'active-speaking' : ''}`}></div>
+                                <div className={`interviewer-avatar ${isAiSpeaking ? 'speaking' : ''}`}>
+                                    <UserIcon size={64} style={{ color: isAiSpeaking ? 'var(--accent-violet)' : 'var(--text-secondary)' }} />
+                                </div>
                             </div>
-                            {/* Message Input Panel */}
-                            <form onSubmit={handleSendChat} style={{ display: 'flex', gap: '12px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--glass-border)' }}>
-                                {/* Voice Record Button */}
+
+                            <div className={`audio-visualizer ${isAiSpeaking ? 'speaking' : ''} ${isRecording ? 'listening' : ''}`}>
+                                <div className="visualizer-bar"></div>
+                                <div className="visualizer-bar"></div>
+                                <div className="visualizer-bar"></div>
+                                <div className="visualizer-bar"></div>
+                                <div className="visualizer-bar"></div>
+                            </div>
+
+                            <div className="caption-card">
+                                <span className="caption-label">{isAiSpeaking ? 'Interviewer (Audio)' : 'You (Microphone)'}</span>
+                                <p className="caption-text">
+                                    {isAiSpeaking ? aiSpokenText : transcribedText}
+                                </p>
+                            </div>
+
+                            <div className="call-controls">
                                 <button
                                     type="button"
-                                    onClick={toggleRecording}
-                                    className={`btn-secondary ${isRecording ? 'animate-pulse-glow' : ''}`}
-                                    style={{
-                                        padding: '12px',
-                                        borderRadius: '8px',
-                                        background: isRecording ? 'rgba(244, 63, 94, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                                        borderColor: isRecording ? 'var(--accent-rose)' : 'var(--glass-border)'
-                                    }}
-                                    title={isRecording ? 'Recording... click to stop' : 'Record response via microphone'}
+                                    onClick={toggleMute}
+                                    className={`btn-circle ${isMuted ? 'active danger' : ''}`}
+                                    title={isMuted ? 'Unmute microphone' : 'Mute microphone'}
                                 >
-                                    {isRecording ? <MicOff size={20} style={{ color: 'var(--accent-rose)' }} /> : <Mic size={20} style={{ color: 'var(--text-secondary)' }} />}
+                                    {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
                                 </button>
-                                <input
-                                    type="text"
-                                    className="input-field"
-                                    placeholder={isStreaming ? 'AI is speaking...' : (isRecording ? 'Listening...' : 'Type your answer...')}
-                                    value={chatInput}
-                                    onChange={e => setChatInput(e.target.value)}
-                                    disabled={isStreaming}
-                                />
 
-                                <button type="submit" className="btn-primary" disabled={isStreaming || !chatInput.trim()}>
-                                    <Send size={20} />
+                                <button
+                                    type="button"
+                                    onClick={toggleInterviewMode}
+                                    className="btn-circle"
+                                    title="Switch to Text Chat"
+                                >
+                                    <MessageSquare size={20} />
                                 </button>
-                            </form>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                                    className={`btn-circle ${isSidebarOpen ? 'active' : ''}`}
+                                    title="View Chat History"
+                                >
+                                    <Menu size={20} />
+                                </button>
+
+                                {/* <button
+                                    type="button"
+                                    onClick={handleEndInterview}
+                                    className="btn-circle danger"
+                                    title="End Interview"
+                                >
+                                    <PhoneOff size={20} />
+                                </button> */}
+                            </div>
+
+                            {/* Slide-out Sidebar for Chat History */}
+                            <div className={`call-sidebar ${isSidebarOpen ? 'open' : ''}`}>
+                                <div className="sidebar-header">
+                                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Chat History</h3>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsSidebarOpen(false)}
+                                        className="btn-secondary"
+                                        style={{ padding: '6px', borderRadius: '50%' }}
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                                <div className="sidebar-content">
+                                    {chatMessages.map((msg, index) => (
+                                        <div
+                                            key={index}
+                                            style={{
+                                                background: msg.sender === 'AI' ? 'rgba(255,255,255,0.03)' : 'rgba(139, 92, 246, 0.1)',
+                                                border: '1px solid var(--glass-border)',
+                                                borderRadius: '8px',
+                                                padding: '12px',
+                                                alignSelf: msg.sender === 'AI' ? 'flex-start' : 'flex-end',
+                                                maxWidth: '90%',
+                                                fontSize: '0.875rem',
+                                                lineHeight: 1.4
+                                            }}
+                                        >
+                                            <strong>{msg.sender === 'AI' ? 'Interviewer' : 'You'}:</strong>
+                                            <p style={{ marginTop: '4px', whiteSpace: 'pre-wrap' }}>{msg.message}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        /* Standard Text Chat Layout View */
+                        <div style={{ width: '100%', maxWidth: '800px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <div className="glass-card" style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', paddingBottom: '16px', marginBottom: '16px' }}>
+                                    <div>
+                                        <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{activeSession.role} Mock Interview</h2>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Status: <strong>Active Q&A Session</strong></span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                        <button
+                                            type="button"
+                                            onClick={toggleInterviewMode}
+                                            className="btn-secondary"
+                                            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                                        >
+                                            <Mic size={16} /> Switch to Voice
+                                        </button>
+                                        <button onClick={handleEndInterview} className="btn-secondary" style={{ borderColor: 'var(--accent-rose)', color: 'var(--accent-rose)' }}>
+                                            End & Evaluate
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="chat-container">
+                                    {chatMessages.length === 0 ? (
+                                        <div style={{ textAlign: 'center', margin: 'auto', color: 'var(--text-muted)' }}>
+                                            <Loader2 className="animate-spin" style={{ margin: 'auto', marginBottom: '8px' }} />
+                                            <p style={{ fontSize: '0.875rem' }}>Initializing AI interviewer context...</p>
+                                        </div>
+                                    ) : (
+                                        chatMessages.map((msg, index) => (
+                                            <div key={index} className={`chat-bubble ${msg.sender.toLowerCase()}`}>
+                                                <strong>{msg.sender === 'AI' ? 'Interviewer' : 'You'}:</strong>
+                                                <p style={{ marginTop: '4px', whiteSpace: 'pre-wrap' }}>
+                                                    {msg.message || (isStreaming && index === chatMessages.length - 1 ? '●' : '')}
+                                                </p>
+                                            </div>
+                                        ))
+                                    )}
+                                    <div ref={chatEndRef} />
+                                </div>
+                                <form onSubmit={handleSendChat} style={{ display: 'flex', gap: '12px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--glass-border)' }}>
+                                    <button
+                                        type="button"
+                                        onClick={toggleRecording}
+                                        className={`btn-secondary ${isRecording ? 'animate-pulse-glow' : ''}`}
+                                        style={{
+                                            padding: '12px',
+                                            borderRadius: '8px',
+                                            background: isRecording ? 'rgba(244, 63, 94, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                                            borderColor: isRecording ? 'var(--accent-rose)' : 'var(--glass-border)'
+                                        }}
+                                        title={isRecording ? 'Recording... click to stop' : 'Record response via microphone'}
+                                    >
+                                        {isRecording ? <MicOff size={20} style={{ color: 'var(--accent-rose)' }} /> : <Mic size={20} style={{ color: 'var(--text-secondary)' }} />}
+                                    </button>
+                                    <input
+                                        type="text"
+                                        className="input-field"
+                                        placeholder={isStreaming ? 'AI is speaking...' : (isRecording ? 'Listening...' : 'Type your answer...')}
+                                        value={chatInput}
+                                        onChange={e => setChatInput(e.target.value)}
+                                        disabled={isStreaming}
+                                    />
+                                    <button type="submit" className="btn-primary" disabled={isStreaming || !chatInput.trim()}>
+                                        <Send size={20} />
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    )
                 )}
 
                 {/* view4 evaluation scorecard */}

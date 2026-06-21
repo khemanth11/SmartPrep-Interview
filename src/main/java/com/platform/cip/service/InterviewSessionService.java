@@ -22,7 +22,7 @@ public class InterviewSessionService {
     private final GroqService groqService;
 
     // Starts a new interview session for a user
-    public InterviewSession createSession(String userId, String role, String problemId) {
+    public InterviewSession createSession(String userId, String role, String problemId, String resumeText) {
         // If a coding problem is linked, verify that the problem actually exists
         if (problemId != null && !problemId.trim().isEmpty()) {
             if (!problemRepository.existsById(problemId)) {
@@ -34,6 +34,7 @@ public class InterviewSessionService {
                 .userId(userId)
                 .role(role)
                 .problemId(problemId)
+                .resumeText(resumeText)
                 .status("IN_PROGRESS")
                 .messages(new ArrayList<>())
                 .createdAt(LocalDateTime.now())
@@ -77,7 +78,8 @@ public class InterviewSessionService {
         sessionRepository.save(session);
 
         // 2.Fetching the dynamic stream responce form Groq
-        Flux<String> responseStream = groqService.streamInterviewerResponse(session.getMessages(), session.getRole());
+        Flux<String> responseStream = groqService.streamInterviewerResponse(session.getMessages(), session.getRole(),
+                session.getResumeText());
 
         // 3.Accumulate token reactively and sace the aynch to monogo db upon completion
         StringBuilder aiResponseBuilder = new StringBuilder();
@@ -117,9 +119,9 @@ public class InterviewSessionService {
         InterviewSession session = getSessionById(sessionId, userId);
 
         // requestgroq to score the interview
-        GroqService.InterviewEvaluation evaluation = groqService.evaluateSession(session
-                .getMessages(),
-                session.getRole());
+        GroqService.InterviewEvaluation evaluation = groqService.evaluateSession(session.getMessages(),
+                session.getRole(), session.getResumeText());
+
         session.setCommunicationScore(evaluation.getCommunicationScore());
         session.setDomainKnowledgeScore(evaluation.getDomainKnowledgeScore());
         session.setFeedback(evaluation.getFeedback());

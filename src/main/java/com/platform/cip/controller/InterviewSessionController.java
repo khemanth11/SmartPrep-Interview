@@ -26,8 +26,11 @@ public class InterviewSessionController {
     public ResponseEntity<InterviewSession> createSession(
             @RequestBody @Valid InterviewSessionRequest request,
             @AuthenticationPrincipal User user) {
-        InterviewSession session = interviewSessionService.createSession(user.getId(), request.getRole(),
-                request.getProblemId());
+        InterviewSession session = interviewSessionService.createSession(
+                user.getId(),
+                request.getRole(),
+                request.getProblemId(),
+                request.getResumeText());
         return ResponseEntity.ok(session);
     }
 
@@ -88,4 +91,30 @@ public class InterviewSessionController {
         InterviewSession session = interviewSessionService.evaluateSession(id, user.getId());
         return ResponseEntity.ok(session);
     }
+
+    @PostMapping(value = "/parse-resume", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, String>> parseResume(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        try {
+            String filename = file.getOriginalFilename();
+            String extractedText = "";
+            if (filename != null && filename.toLowerCase().endsWith(".pdf")) {
+                try (org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader
+                        .loadPDF(file.getBytes())) {
+                    org.apache.pdfbox.text.PDFTextStripper stripper = new org.apache.pdfbox.text.PDFTextStripper();
+                    extractedText = stripper.getText(document);
+                }
+            } else if (filename != null && filename.toLowerCase().endsWith(".txt")) {
+                extractedText = new String(file.getBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Unsupported file type. Please upload a PDF or TXT file."));
+            }
+            return ResponseEntity.ok(Map.of("text", extractedText));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to parse file: " + e.getMessage()));
+        }
+    }
+
 }
