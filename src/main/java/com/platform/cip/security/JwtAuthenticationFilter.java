@@ -1,4 +1,5 @@
 package com.platform.cip.security;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,52 +26,41 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
-        
-        final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String username;
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        // 1. Check if the header contains a Bearer token. If not, pass request to next filter.
+        final String authHeader = request.getHeader("Authorization");
+
+        // 1. Check if the header contains a Bearer token.
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 2. Extract the JWT token (substring after "Bearer ")
-        jwt = authHeader.substring(7);
-        
-        // 3. Extract username from JWT
-        username = jwtService.extractUsername(jwt);
+        try {
+            // 2. Extract JWT token & username
+            final String jwt = authHeader.substring(7);
+            final String username = jwtService.extractUsername(jwt);
 
-        // 4. If username exists and user is not already authenticated in this thread context
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            
-            // 5. Load user details from the database
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+            // 3. Authenticate if username is present and thread is not already
+            // authenticated
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
 
-            // 6. Verify if the token is valid (matches user, not expired)
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                
-                // 7. Create UsernamePasswordAuthenticationToken (contains user, credentials, and roles/authorities)
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-                
-                // 8. Build details (e.g. IP address, session ID) from the HTTP request and attach to authentication
-                authToken.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request)
-                );
-                
-                // 9. Put the authenticated user in Spring's SecurityContext
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                if (jwtService.isTokenValid(jwt, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities());
+                    authToken.setDetails(
+                            new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
+        } catch (Exception e) {
+            // Invalid, expired, or tampered JWT token — proceed down filter chain
+            // unauthenticated
         }
 
-        // 10. Pass the request to the next filter in the chain (e.g. standard Spring Security filters)
         filterChain.doFilter(request, response);
     }
 }

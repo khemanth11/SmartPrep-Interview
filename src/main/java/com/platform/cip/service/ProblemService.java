@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -14,6 +15,8 @@ import java.util.stream.Collectors;
 public class ProblemService {
 
     private final ProblemRepository problemRepository;
+    private final SubmissionService submissionService;
+    private final UserProgressService userProgressService;
 
     // Creates a new problem in the database (Admin/Developer endpoint)
     public Problem createProblem(Problem problem) {
@@ -23,19 +26,31 @@ public class ProblemService {
         return problemRepository.save(problem);
     }
 
-    // Fetches all problems, mapping them to safe responses (excluding hidden test
-    // cases)
-    public List<ProblemResponse> getAllProblemsSafe() {
+    // Fetches all problems, mapping them to safe responses and attaching
+    // solveStatus and isCompleted progress
+    public List<ProblemResponse> getAllProblemsSafe(String userId) {
+        Map<String, String> solveStatuses = submissionService.getSolveStatusesForUser(userId);
+        java.util.Set<String> completedIds = userProgressService.getCompletedProblemIds(userId);
         return problemRepository.findAll().stream()
-                .map(this::convertToResponse)
+                .map(problem -> {
+                    String status = solveStatuses.getOrDefault(problem.getId(), "UNSOLVED");
+                    boolean isCompleted = "SOLVED".equalsIgnoreCase(status) || "ACCEPTED".equalsIgnoreCase(status)
+                            || (completedIds != null && completedIds.contains(problem.getId()));
+                    return convertToResponse(problem, status, isCompleted);
+                })
                 .collect(Collectors.toList());
     }
 
-    // Fetches a single problem by ID safely (excluding hidden test cases)
-    public ProblemResponse getProblemByIdSafe(String id) {
+    // Fetches a single problem by ID safely
+    public ProblemResponse getProblemByIdSafe(String id, String userId) {
         Problem problem = problemRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Problem not found with ID: " + id));
-        return convertToResponse(problem);
+        Map<String, String> solveStatuses = submissionService.getSolveStatusesForUser(userId);
+        java.util.Set<String> completedIds = userProgressService.getCompletedProblemIds(userId);
+        String status = solveStatuses.getOrDefault(id, "UNSOLVED");
+        boolean isCompleted = "SOLVED".equalsIgnoreCase(status) || "ACCEPTED".equalsIgnoreCase(status)
+                || (completedIds != null && completedIds.contains(id));
+        return convertToResponse(problem, status, isCompleted);
     }
 
     // Direct helper method used internally by the Code Executor (needs access to
@@ -46,7 +61,7 @@ public class ProblemService {
     }
 
     // Mapping helper to strip hidden test cases
-    private ProblemResponse convertToResponse(Problem problem) {
+    private ProblemResponse convertToResponse(Problem problem, String solveStatus, boolean isCompleted) {
         return ProblemResponse.builder()
                 .id(problem.getId())
                 .title(problem.getTitle())
@@ -57,7 +72,12 @@ public class ProblemService {
                 .outputFormat(problem.getOutputFormat())
                 .constraints(problem.getConstraints())
                 .systemTemplate(problem.getSystemTemplate())
+                .jsTemplate(problem.getJsTemplate())
                 .sampleTestCases(problem.getSampleTestCases())
+                .solveStatus(solveStatus)
+                .category(problem.getCategory())
+                .moduleOrder(problem.getModuleOrder())
+                .isCompleted(isCompleted)
                 .build();
     }
 }

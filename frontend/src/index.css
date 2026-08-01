@@ -432,8 +432,12 @@ select.input-field option {
 
 .listening .visualizer-bar {
   background-color: var(--accent-emerald);
-  animation: bounceWave 0.8s infinite ease-in-out;
+  /* Disable CSS animation to let the JS Audio Analyser drive the height scaling */
+  animation: none;
+  /* Add smooth transition on the transform property for real-time visualization response */
+  transition: transform 0.05s ease;
 }
+
 
 .listening .visualizer-bar:nth-child(2) {
   animation-delay: 0.1s;

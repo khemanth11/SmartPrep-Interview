@@ -23,5 +23,10 @@ public class ProblemResponse {
     private String outputFormat;
     private String constraints;
     private String systemTemplate;
+    private String jsTemplate;
     private List<TestCase> sampleTestCases;
+    private String solveStatus;
+    private String category;
+    private int moduleOrder;
+    private boolean isCompleted;
 }

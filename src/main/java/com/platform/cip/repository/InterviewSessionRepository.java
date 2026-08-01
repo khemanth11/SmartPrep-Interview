@@ -10,6 +10,7 @@ import java.util.List;
 public interface InterviewSessionRepository extends MongoRepository<InterviewSession, String> {
     // Finds all sessions belonging to a user
     List<InterviewSession> findByUserId(String userId);
+    List<InterviewSession> findByUserIdOrderByCreatedAtDesc(String userId);
 
     // Finds all active sessions for a user (status is typically "IN_PROGRESS")
     List<InterviewSession> findByUserIdAndStatus(String userId, String status);

@@ -7,6 +7,21 @@ spring:
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/cip_db}
+      database: ${MONGODB_DATABASE:cip_db}
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:google-client-secret}
+            redirect-uri: "{baseUrl}/login/oauth2/code/google"
+            scope: email, profile
+          github:
+            client-id: ${GITHUB_CLIENT_ID:github-client-id}
+            client-secret: ${GITHUB_CLIENT_SECRET:github-client-secret}
+            redirect-uri: "{baseUrl}/login/oauth2/code/github"
+            scope: user:email, read:user
 
 jwt:
   secret: ${JWT_SECRET:dGhpcy1pcy1hLXNlY3VyZS1hbmQtc3Ryb25nLXNlY3JldC1rZXktZm9yLWNpcC1wbGF0Zm9ybS1qd3Qtc2lnbmluZy1tdXN0LWJlLTI1Ni1iaXRz}
@@ -17,3 +32,9 @@ groq:
     url: ${GROQ_API_URL:https://api.groq.com/openai/v1}
     key: ${GROQ_API_KEY:}
     model: ${GROQ_API_MODEL:llama-3.1-8b-instant}
+
+judge0:
+  api:
+    url: ${JUDGE0_API_URL:https://judge0-ce.p.rapidapi.com}
+    key: ${JUDGE0_API_KEY:}
+    enabled: ${JUDGE0_ENABLED:false}

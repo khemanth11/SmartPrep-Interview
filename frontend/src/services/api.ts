@@ -1,4 +1,4 @@
-import { GeorgianLari } from "lucide-react";
+// import { GeorgianLari } from "lucide-react";
 
 export interface User {
     id: string;
@@ -26,6 +26,12 @@ export interface InterviewSession {
     messages: ChatMessage[];
     createdAt: string;
 }
+
+export interface TestCase {
+    input: string;
+    output: string;
+}
+
 export interface Problem {
     id: string;
     title: string;
@@ -35,7 +41,40 @@ export interface Problem {
     inputFormat?: string;
     outputFormat?: string;
     constraints?: string;
+    systemTemplate?: string;
+    jsTemplate?: string;
+    javaTemplate?: string;
+    cppTemplate?: string;
+    goTemplate?: string;
+    sampleTestCases?: TestCase[];
+    solveStatus?: 'SOLVED' | 'ATTEMPTED' | 'UNSOLVED';
+    category?: string;
+    moduleOrder?: number;
+    isCompleted?: boolean;
 }
+
+export interface Submission {
+    id: string;
+    problemId: string;
+    code: string;
+    language: string;
+    status: 'ACCEPTED' | 'WRONG_ANSWER' | 'COMPILE_ERROR' | 'TIME_LIMIT_EXCEEDED' | 'RUNTIME_ERROR';
+    passedCount: number;
+    totalCount: number;
+    submittedAt: string;
+}
+
+
+export interface TestCaseExecutionResult {
+    testCaseIndex: number;
+    passed: boolean;
+    input: string;
+    expectedOutput: string;
+    actualOutput: string;
+    error?: string;
+    elapsedTimeMs: number;
+}
+
 
 const BASE_URL = '/api/v1';
 
@@ -210,5 +249,140 @@ export async function parseResume(file: File, token: string): Promise<{ text: st
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to parse resume');
     }
+    return res.json();
+}
+
+export async function runCode(
+    id: string,
+    code: string,
+    language: string,
+    token: string
+): Promise<TestCaseExecutionResult[]> {
+    const res = await fetch(`${BASE_URL}/problems/${id}/run`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify({ code, language }),
+    });
+    if (!res.ok) throw new Error('Failed to run code');
+    return res.json();
+}
+
+export async function submitCode(
+    id: string,
+    code: string,
+    language: string,
+    token: string
+): Promise<TestCaseExecutionResult[]> {
+    const res = await fetch(`${BASE_URL}/problems/${id}/submit`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify({ code, language }),
+    });
+    if (!res.ok) throw new Error('Failed to submit code');
+    return res.json();
+}
+
+export async function getLatestSubmission(
+    id: string,
+    token: string
+): Promise<Submission | null> {
+    const res = await fetch(`${BASE_URL}/problems/${id}/submissions/latest`, {
+        method: 'GET',
+        headers: getHeaders(token),
+    });
+    if (res.status === 204) return null;
+    if (!res.ok) throw new Error('Failed to load latest submission');
+    return res.json();
+}
+
+export async function getSubmissionHistory(
+    id: string,
+    token: string
+): Promise<Submission[]> {
+    const res = await fetch(`${BASE_URL}/problems/${id}/submissions`, {
+        method: 'GET',
+        headers: getHeaders(token),
+    });
+    if (!res.ok) throw new Error('Failed to load submission history');
+    return res.json();
+}
+
+export async function toggleProblemComplete(
+    id: string,
+    token: string
+): Promise<{ problemId: string; isCompleted: boolean }> {
+    const res = await fetch(`${BASE_URL}/problems/${id}/toggle-complete`, {
+        method: 'POST',
+        headers: getHeaders(token),
+    });
+    if (!res.ok) throw new Error('Failed to toggle completion status');
+    return res.json();
+}
+
+export interface RankedProblem {
+    priorityRank: number;
+    problemId: string;
+    title: string;
+    difficulty: string;
+    category: string;
+    reason: string;
+    completed: boolean;
+}
+
+export interface CompanyPrepPlan {
+    id: string;
+    userId: string;
+    companyName: string;
+    role: string;
+    examDate?: string;
+    jobDescription?: string;
+    aiStrategySummary?: string;
+    prioritizedProblems: RankedProblem[];
+    createdAt: string;
+}
+
+export interface UserAnalyticsResponse {
+    totalProblemsSolved: number;
+    easySolved: number;
+    mediumSolved: number;
+    hardSolved: number;
+    totalSubmissions: number;
+    averageCommunicationScore: number;
+    averageDomainKnowledgeScore: number;
+    completedInterviewsCount: number;
+    googleReadinessScore: number;
+    amazonReadinessScore: number;
+    microsoftReadinessScore: number;
+}
+
+export async function generateCompanyPrepPlan(
+    request: { companyName: string; role: string; examDate?: string; jobDescription?: string },
+    token: string
+): Promise<CompanyPrepPlan> {
+    const res = await fetch(`${BASE_URL}/company-prep/generate`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify(request)
+    });
+    if (!res.ok) throw new Error('Failed to generate organization preparation plan');
+    return res.json();
+}
+
+export async function getActiveCompanyPrepPlan(token: string): Promise<CompanyPrepPlan | null> {
+    const res = await fetch(`${BASE_URL}/company-prep/active`, {
+        method: 'GET',
+        headers: getHeaders(token)
+    });
+    if (res.status === 204) return null;
+    if (!res.ok) throw new Error('Failed to fetch active organization prep plan');
+    return res.json();
+}
+
+export async function getUserAnalytics(token: string): Promise<UserAnalyticsResponse> {
+    const res = await fetch(`${BASE_URL}/analytics/dashboard`, {
+        method: 'GET',
+        headers: getHeaders(token)
+    });
+    if (!res.ok) throw new Error('Failed to load candidate analytics');
     return res.json();
 }

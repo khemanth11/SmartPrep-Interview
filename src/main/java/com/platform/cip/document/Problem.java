@@ -30,6 +30,17 @@ public class Problem {
     private String systemTemplate;
     private List<TestCase> sampleTestCases;
     private List<TestCase> hiddenTestCases;
+    private String driverCode;
+    private String jsTemplate;
+    private String jsDriverCode;
+    private String javaTemplate;
+    private String javaDriverCode;
+    private String cppTemplate;
+    private String cppDriverCode;
+    private String goTemplate;
+    private String goDriverCode;
+    private String category;
+    private int moduleOrder;
 
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
