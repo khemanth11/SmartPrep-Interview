@@ -14,5 +14,7 @@ Thumbs.db
 *.log
 *.tmp
 Project_Working.md
+Project_Documentation.html
+*.pdf
 .env
 !.env.example
