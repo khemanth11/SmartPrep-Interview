@@ -34,7 +34,10 @@ public class GroqService {
     @SuppressWarnings("deprecation")
     private final ObjectMapper objectMapper = new ObjectMapper()
             .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, true)
-            .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
+            .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
+            .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .configure(com.fasterxml.jackson.databind.MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS, true);
+
     private WebClient webClient;
 
     // Inner class representing structured evaluation response
@@ -338,10 +341,12 @@ public class GroqService {
         }
     }
 
-    public String generateCompanyStrategySummary(String companyName, String role, String examDate, String jobDescription) {
+    public String generateCompanyStrategySummary(String companyName, String role, String examDate,
+            String jobDescription) {
         String systemPrompt = "You are a lead technical recruiter and hiring expert. Analyze the target company, role, upcoming exam date, and job description. Provide a concise 2-sentence AI strategic focus summary explaining what algorithms, concepts, and technical topics this specific company prioritizes in coding interviews.";
         String userPrompt = String.format("Company: %s\nRole: %s\nExam Date: %s\nJob Description: %s",
-                companyName, role, examDate != null ? examDate : "N/A", jobDescription != null ? jobDescription : "N/A");
+                companyName, role, examDate != null ? examDate : "N/A",
+                jobDescription != null ? jobDescription : "N/A");
 
         List<Map<String, String>> messages = List.of(
                 Map.of("role", "system", "content", systemPrompt),
@@ -367,7 +372,8 @@ public class GroqService {
         } catch (Exception e) {
             System.err.println("Groq API company strategy call failed: " + e.getMessage());
         }
-        return String.format("Strategic Focus for %s (%s): Prioritize core Data Structures & Algorithms, Java OOPs, SQL, and system efficiency matching %s hiring patterns.",
+        return String.format(
+                "Strategic Focus for %s (%s): Prioritize core Data Structures & Algorithms, Java OOPs, SQL, and system efficiency matching %s hiring patterns.",
                 companyName, role, companyName);
     }
 
@@ -418,6 +424,108 @@ public class GroqService {
                 .build();
     }
 
+    /**
+     * Generates a complete LeetCode-style Problem document on demand using Groq
+     * Llama 3.1 / GPT-OSS.
+     */
+    public com.platform.cip.document.Problem generateCustomProblem(String topic, String difficulty, String company) {
+        String targetCompany = (company != null && !company.isBlank()) ? company : "General Tech Interview";
+        String targetTopic = (topic != null && !topic.isBlank()) ? topic : "Data Structures & Algorithms";
+        String targetDifficulty = (difficulty != null && !difficulty.isBlank()) ? difficulty.toUpperCase() : "MEDIUM";
+
+        String prompt = String.format(
+                """
+                        You are a Principal Software Architect creating an authentic LeetCode-style coding interview problem for %s.
+                        Topic: %s
+                        Difficulty: %s
+
+                        Generate a completely new problem in valid json format matching this EXACT schema:
+                        {
+                          "title": "Problem Title",
+                          "description": "Clear problem description with markdown formatting.",
+                          "difficulty": "%s",
+                          "category": "%s",
+                          "tags": ["Tag1", "Tag2"],
+                          "inputFormat": "Input specification",
+                          "outputFormat": "Output specification",
+                          "constraints": "1 <= N <= 10^5...",
+                          "systemTemplate": "class Solution:\\n    def solve(self, ...):\\n        pass\\n",
+                          "driverCode": "import sys\\n...",
+                          "jsTemplate": "class Solution {\\n    solve(...) {\\n    }\\n}\\n",
+                          "jsDriverCode": "const fs = require('fs');\\n...",
+                          "javaTemplate": "class Solution {\\n    public int solve(...) {\\n        return 0;\\n    }\\n}\\n",
+                          "javaDriverCode": "import java.util.Scanner;\\n...",
+                          "cppTemplate": "class Solution {\\npublic:\\n    int solve(...) {\\n        return 0;\\n    }\\n};\\n",
+                          "cppDriverCode": "#include <iostream>\\n...",
+                          "goTemplate": "package main\\n\\nfunc solve(...) int {\\n    return 0;\\n}\\n",
+                          "goDriverCode": "package main\\n...",
+                          "sampleTestCases": [
+                            { "input": "1 2 3", "output": "6" },
+                            { "input": "4 5 6", "output": "15" }
+                          ],
+                          "hiddenTestCases": [
+                            { "input": "10 20", "output": "30" },
+                            { "input": "0 0", "output": "0" },
+                            { "input": "-5 5", "output": "0" }
+                          ]
+                        }
+
+                        CRITICAL RULES:
+                        1. Respond ONLY with the raw json object. No intro, no markdown wrapping.
+                        2. Python/JS/Java/C++/Go driver code MUST read inputs from standard input (stdin) and print the result to standard output (stdout).
+                        3. Ensure sampleTestCases and hiddenTestCases have valid inputs and outputs.
+                        """,
+                targetCompany, targetTopic, targetDifficulty, targetDifficulty, targetTopic);
+
+        Map<String, Object> requestBody = Map.of(
+                "model", modelName,
+                "messages", List.of(
+                        Map.of("role", "system", "content",
+                                "You are an automated problem generation engine. You must output the entire response as a raw JSON object without markdown code fences."),
+                        Map.of("role", "user", "content", prompt)),
+                "temperature", 0.2,
+                "max_tokens", 4096);
+
+        System.out.println("🤖 Sending request to Groq with model: [" + modelName + "]");
+
+        try {
+            String rawResponse = webClient.post()
+                    .uri("/chat/completions")
+                    .header("Content-Type", "application/json")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            String content = extractContentFromFullResponse(rawResponse);
+            String cleanedJson = cleanJsonString(content);
+
+            com.platform.cip.document.Problem problem = objectMapper.readValue(
+                    cleanedJson,
+                    com.platform.cip.document.Problem.class);
+
+            if (problem.getDifficulty() == null) {
+                problem.setDifficulty(com.platform.cip.document.Difficulty.fromString(targetDifficulty));
+            }
+            if (problem.getCategory() == null || problem.getCategory().isBlank()) {
+                problem.setCategory(targetTopic);
+            }
+
+            return problem;
+        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            // This extracts the EXACT message returned by the Groq API!
+            String groqErrorBody = e.getResponseBodyAsString();
+            System.err.println("==================================================");
+            System.err.println("❌ GROQ DETAILED ERROR: " + groqErrorBody);
+            System.err.println("==================================================");
+            throw new RuntimeException("Groq API Error (" + e.getStatusCode() + "): " + groqErrorBody, e);
+        } catch (Exception e) {
+            System.err.println("❌ Problem Generation Error: " + e.getMessage());
+            throw new RuntimeException("Failed to generate AI problem: " + e.getMessage(), e);
+        }
+
+    }
+
     // Helper to parse streamed tokens from JSON
     private String extractContentFromChunk(String chunk) {
         try {
@@ -455,11 +563,16 @@ public class GroqService {
         return "";
     }
 
-    // Helper to clean Markdown tags from LLM responses (e.g., ```json ... ```)
+    // Helper to clean and extract valid JSON substring from LLM response
     private String cleanJsonString(String rawJson) {
         if (rawJson == null)
             return "";
         String cleaned = rawJson.trim();
+        int firstBrace = cleaned.indexOf("{");
+        int lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace) {
+            return cleaned.substring(firstBrace, lastBrace + 1).trim();
+        }
         if (cleaned.startsWith("```json")) {
             cleaned = cleaned.substring(7);
         } else if (cleaned.startsWith("```")) {

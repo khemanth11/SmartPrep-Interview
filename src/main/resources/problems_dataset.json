@@ -1,0 +1,252 @@
+[
+    {
+        "title": "Two Sum",
+        "description": "Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to `target`.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nYou can return the answer in any order.",
+        "difficulty": "EASY",
+        "category": "Arrays & Hashing",
+        "moduleOrder": 1,
+        "tags": [
+            "Array",
+            "Hash Table"
+        ],
+        "inputFormat": "First line: space-separated integers for nums.\nSecond line: target integer.",
+        "outputFormat": "Two indices separated by a space.",
+        "constraints": "2 <= nums.length <= 10^4\n-10^9 <= nums[i] <= 10^9\n-10^9 <= target <= 10^9\nOnly one valid answer exists.",
+        "systemTemplate": "class Solution:\n    def twoSum(self, nums: list[int], target: int) -> list[int]:\n        # Write your Python 3 code here\n        pass\n",
+        "driverCode": "import sys\n\ndef solve():\n    lines = sys.stdin.read().splitlines()\n    if not lines:\n        return\n    nums = list(map(int, lines[0].split()))\n    target = int(lines[1])\n    sol = Solution()\n    res = sol.twoSum(nums, target)\n    if res is not None:\n        print(\" \".join(map(str, res)))\n\nsolve()\n",
+        "jsTemplate": "class Solution {\n    twoSum(nums, target) {\n        // Write your JavaScript code here\n    }\n}\n",
+        "jsDriverCode": "const fs = require('fs');\nfunction main() {\n    const input = fs.readFileSync(0, 'utf-8').trim().split(/\\r?\\n/);\n    if (!input || input.length < 2) return;\n    const nums = input[0].trim().split(/\\s+/).map(Number);\n    const target = Number(input[1].trim());\n    const sol = new Solution();\n    const res = sol.twoSum(nums, target);\n    if (res) console.log(res.join(' '));\n}\nmain();\n",
+        "javaTemplate": "import java.util.*;\n\nclass Solution {\n    public int[] twoSum(int[] nums, int target) {\n        // Write your Java code here\n        return new int[]{};\n    }\n}\n",
+        "javaDriverCode": "import java.util.*;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (!sc.hasNextLine()) return;\n        String[] parts = sc.nextLine().trim().split(\"\\\\s+\");\n        int[] nums = new int[parts.length];\n        for (int i = 0; i < parts.length; i++) nums[i] = Integer.parseInt(parts[i]);\n        if (!sc.hasNextInt()) return;\n        int target = sc.nextInt();\n        Solution sol = new Solution();\n        int[] res = sol.twoSum(nums, target);\n        if (res != null && res.length == 2) System.out.println(res[0] + \" \" + res[1]);\n    }\n}\n",
+        "cppTemplate": "#include <vector>\nusing namespace std;\n\nclass Solution {\npublic:\n    vector<int> twoSum(vector<int>& nums, int target) {\n        // Write your C++ code here\n        return {};\n    }\n};\n",
+        "cppDriverCode": "#include <iostream>\n#include <vector>\n#include <sstream>\n#include <string>\nusing namespace std;\n\nint main() {\n    string line;\n    if (!getline(cin, line)) return 0;\n    stringstream ss(line);\n    vector<int> nums;\n    int val;\n    while (ss >> val) nums.push_back(val);\n    int target;\n    if (!(cin >> target)) return 0;\n    Solution sol;\n    vector<int> res = sol.twoSum(nums, target);\n    if (res.size() == 2) cout << res[0] << \" \" << res[1] << endl;\n    return 0;\n}\n",
+        "goTemplate": "package main\n\nfunc twoSum(nums []int, target int) []int {\n    // Write your Go code here\n    return []int{}\n}\n",
+        "goDriverCode": "package main\nimport (\n    \"bufio\"\n    \"fmt\"\n    \"os\"\n    \"strconv\"\n    \"strings\"\n)\nfunc main() {\n    scanner := bufio.NewScanner(os.Stdin)\n    if !scanner.Scan() { return }\n    parts := strings.Fields(scanner.Text())\n    nums := make([]int, len(parts))\n    for i, p := range parts { nums[i], _ = strconv.Atoi(p) }\n    if !scanner.Scan() { return }\n    target, _ := strconv.Atoi(strings.TrimSpace(scanner.Text()))\n    res := twoSum(nums, target)\n    if len(res) == 2 { fmt.Printf(\"%d %d\\n\", res[0], res[1]) }\n}\n",
+        "sampleTestCases": [
+            {
+                "input": "2 7 11 15\n9",
+                "output": "0 1"
+            },
+            {
+                "input": "3 2 4\n6",
+                "output": "1 2"
+            }
+        ],
+        "hiddenTestCases": [
+            {
+                "input": "3 3\n6",
+                "output": "0 1"
+            },
+            {
+                "input": "1 5 8 11 14\n19",
+                "output": "1 4"
+            },
+            {
+                "input": "100 -50 25 75\n25",
+                "output": "1 3"
+            }
+        ]
+    },
+    {
+        "title": "Valid Anagram",
+        "description": "Given two strings `s` and `t`, return `true` if `t` is an anagram of `s`, and `false` otherwise.\n\nAn Anagram is a word or phrase formed by rearranging the letters of a different word or phrase, typically using all the original letters exactly once.",
+        "difficulty": "EASY",
+        "category": "Arrays & Hashing",
+        "moduleOrder": 2,
+        "tags": [
+            "Hash Table",
+            "String",
+            "Sorting"
+        ],
+        "inputFormat": "First line: string s\nSecond line: string t",
+        "outputFormat": "true or false",
+        "constraints": "1 <= s.length, t.length <= 5 * 10^4\ns and t consist of lowercase English letters.",
+        "systemTemplate": "class Solution:\n    def isAnagram(self, s: str, t: str) -> bool:\n        # Write your Python 3 code here\n        pass\n",
+        "driverCode": "import sys\n\ndef solve():\n    lines = sys.stdin.read().splitlines()\n    if len(lines) < 2:\n        return\n    s = lines[0].strip()\n    t = lines[1].strip()\n    sol = Solution()\n    print(str(sol.isAnagram(s, t)).lower())\n\nsolve()\n",
+        "jsTemplate": "class Solution {\n    isAnagram(s, t) {\n        // Write your JavaScript code here\n    }\n}\n",
+        "jsDriverCode": "const fs = require('fs');\nfunction main() {\n    const input = fs.readFileSync(0, 'utf-8').trim().split(/\\r?\\n/);\n    if (input.length < 2) return;\n    const sol = new Solution();\n    console.log(Boolean(sol.isAnagram(input[0].trim(), input[1].trim())).toString());\n}\nmain();\n",
+        "javaTemplate": "class Solution {\n    public boolean isAnagram(String s, String t) {\n        // Write your Java code here\n        return false;\n    }\n}\n",
+        "javaDriverCode": "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (!sc.hasNextLine()) return;\n        String s = sc.nextLine().trim();\n        if (!sc.hasNextLine()) return;\n        String t = sc.nextLine().trim();\n        Solution sol = new Solution();\n        System.out.println(sol.isAnagram(s, t));\n    }\n}\n",
+        "cppTemplate": "#include <string>\nusing namespace std;\n\nclass Solution {\npublic:\n    bool isAnagram(string s, string t) {\n        // Write your C++ code here\n        return false;\n    }\n};\n",
+        "cppDriverCode": "#include <iostream>\n#include <string>\nusing namespace std;\n\nint main() {\n    string s, t;\n    if (!(cin >> s >> t)) return 0;\n    Solution sol;\n    cout << (sol.isAnagram(s, t) ? \"true\" : \"false\") << endl;\n    return 0;\n}\n",
+        "goTemplate": "package main\n\nfunc isAnagram(s string, t string) bool {\n    // Write your Go code here\n    return false\n}\n",
+        "goDriverCode": "package main\nimport (\n    \"bufio\"\n    \"fmt\"\n    \"os\"\n    \"strings\"\n)\nfunc main() {\n    scanner := bufio.NewScanner(os.Stdin)\n    if !scanner.Scan() { return }\n    s := strings.TrimSpace(scanner.Text())\n    if !scanner.Scan() { return }\n    t := strings.TrimSpace(scanner.Text())\n    fmt.Println(isAnagram(s, t))\n}\n",
+        "sampleTestCases": [
+            {
+                "input": "anagram\nnagaram",
+                "output": "true"
+            },
+            {
+                "input": "rat\ncar",
+                "output": "false"
+            }
+        ],
+        "hiddenTestCases": [
+            {
+                "input": "a\na",
+                "output": "true"
+            },
+            {
+                "input": "ab\na",
+                "output": "false"
+            },
+            {
+                "input": "listen\nsilent",
+                "output": "true"
+            }
+        ]
+    },
+    {
+        "title": "Valid Parentheses",
+        "description": "Given a string `s` containing just the characters `'('`, `')'`, `'{'`, `'}'`, `'['` and `']'`, determine if the input string is valid.\n\nAn input string is valid if:\n1. Open brackets must be closed by the same type of brackets.\n2. Open brackets must be closed in the correct order.\n3. Every close bracket has a corresponding open bracket of the same type.",
+        "difficulty": "EASY",
+        "category": "Stack",
+        "moduleOrder": 3,
+        "tags": [
+            "String",
+            "Stack"
+        ],
+        "inputFormat": "A single string s.",
+        "outputFormat": "true or false",
+        "constraints": "1 <= s.length <= 10^4\ns consists of parentheses only '()[]{}'.",
+        "systemTemplate": "class Solution:\n    def isValid(self, s: str) -> bool:\n        # Write your Python 3 code here\n        pass\n",
+        "driverCode": "import sys\n\ndef solve():\n    line = sys.stdin.read().strip()\n    if not line:\n        return\n    sol = Solution()\n    print(str(sol.isValid(line)).lower())\n\nsolve()\n",
+        "jsTemplate": "class Solution {\n    isValid(s) {\n        // Write your JavaScript code here\n    }\n}\n",
+        "jsDriverCode": "const fs = require('fs');\nfunction main() {\n    const input = fs.readFileSync(0, 'utf-8').trim();\n    if (!input) return;\n    const sol = new Solution();\n    console.log(Boolean(sol.isValid(input)).toString());\n}\nmain();\n",
+        "javaTemplate": "class Solution {\n    public boolean isValid(String s) {\n        // Write your Java code here\n        return false;\n    }\n}\n",
+        "javaDriverCode": "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (!sc.hasNextLine()) return;\n        String s = sc.nextLine().trim();\n        Solution sol = new Solution();\n        System.out.println(sol.isValid(s));\n    }\n}\n",
+        "cppTemplate": "#include <string>\nusing namespace std;\n\nclass Solution {\npublic:\n    bool isValid(string s) {\n        // Write your C++ code here\n        return false;\n    }\n};\n",
+        "cppDriverCode": "#include <iostream>\n#include <string>\nusing namespace std;\n\nint main() {\n    string s;\n    if (!(cin >> s)) return 0;\n    Solution sol;\n    cout << (sol.isValid(s) ? \"true\" : \"false\") << endl;\n    return 0;\n}\n",
+        "goTemplate": "package main\n\nfunc isValid(s string) bool {\n    // Write your Go code here\n    return false\n}\n",
+        "goDriverCode": "package main\nimport (\n    \"bufio\"\n    \"fmt\"\n    \"os\"\n    \"strings\"\n)\nfunc main() {\n    scanner := bufio.NewScanner(os.Stdin)\n    if !scanner.Scan() { return }\n    s := strings.TrimSpace(scanner.Text())\n    fmt.Println(isValid(s))\n}\n",
+        "sampleTestCases": [
+            {
+                "input": "()",
+                "output": "true"
+            },
+            {
+                "input": "()[]{}",
+                "output": "true"
+            },
+            {
+                "input": "(]",
+                "output": "false"
+            }
+        ],
+        "hiddenTestCases": [
+            {
+                "input": "([)]",
+                "output": "false"
+            },
+            {
+                "input": "{[]}",
+                "output": "true"
+            },
+            {
+                "input": "(((",
+                "output": "false"
+            }
+        ]
+    },
+    {
+        "title": "Binary Search",
+        "description": "Given an array of integers `nums` which is sorted in ascending order, and an integer `target`, write a function to search `target` in `nums`. If `target` exists, then return its index. Otherwise, return `-1`.\n\nYou must write an algorithm with `O(log n)` runtime complexity.",
+        "difficulty": "EASY",
+        "category": "Binary Search",
+        "moduleOrder": 4,
+        "tags": [
+            "Array",
+            "Binary Search"
+        ],
+        "inputFormat": "Line 1: Space-separated sorted integers representing nums.\nLine 2: Target integer.",
+        "outputFormat": "Index of target, or -1.",
+        "constraints": "1 <= nums.length <= 10^4\n-10^4 < nums[i], target < 10^4\nAll the integers in nums are unique.\nnums is sorted in ascending order.",
+        "systemTemplate": "class Solution:\n    def search(self, nums: list[int], target: int) -> int:\n        # Write your Python 3 code here\n        pass\n",
+        "driverCode": "import sys\n\ndef solve():\n    lines = sys.stdin.read().splitlines()\n    if len(lines) < 2:\n        return\n    nums = list(map(int, lines[0].split()))\n    target = int(lines[1])\n    sol = Solution()\n    print(sol.search(nums, target))\n\nsolve()\n",
+        "jsTemplate": "class Solution {\n    search(nums, target) {\n        // Write your JavaScript code here\n    }\n}\n",
+        "jsDriverCode": "const fs = require('fs');\nfunction main() {\n    const input = fs.readFileSync(0, 'utf-8').trim().split(/\\r?\\n/);\n    if (input.length < 2) return;\n    const nums = input[0].trim().split(/\\s+/).map(Number);\n    const target = Number(input[1].trim());\n    const sol = new Solution();\n    console.log(sol.search(nums, target));\n}\nmain();\n",
+        "javaTemplate": "class Solution {\n    public int search(int[] nums, int target) {\n        // Write your Java code here\n        return -1;\n    }\n}\n",
+        "javaDriverCode": "import java.util.*;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (!sc.hasNextLine()) return;\n        String[] parts = sc.nextLine().trim().split(\"\\\\s+\");\n        int[] nums = new int[parts.length];\n        for (int i = 0; i < parts.length; i++) nums[i] = Integer.parseInt(parts[i]);\n        if (!sc.hasNextInt()) return;\n        int target = sc.nextInt();\n        Solution sol = new Solution();\n        System.out.println(sol.search(nums, target));\n    }\n}\n",
+        "cppTemplate": "#include <vector>\nusing namespace std;\n\nclass Solution {\npublic:\n    int search(vector<int>& nums, int target) {\n        // Write your C++ code here\n        return -1;\n    }\n};\n",
+        "cppDriverCode": "#include <iostream>\n#include <vector>\n#include <sstream>\n#include <string>\nusing namespace std;\n\nint main() {\n    string line;\n    if (!getline(cin, line)) return 0;\n    stringstream ss(line);\n    vector<int> nums;\n    int val;\n    while (ss >> val) nums.push_back(val);\n    int target;\n    if (!(cin >> target)) return 0;\n    Solution sol;\n    cout << sol.search(nums, target) << endl;\n    return 0;\n}\n",
+        "goTemplate": "package main\n\nfunc search(nums []int, target int) int {\n    // Write your Go code here\n    return -1\n}\n",
+        "goDriverCode": "package main\nimport (\n    \"bufio\"\n    \"fmt\"\n    \"os\"\n    \"strconv\"\n    \"strings\"\n)\nfunc main() {\n    scanner := bufio.NewScanner(os.Stdin)\n    if !scanner.Scan() { return }\n    parts := strings.Fields(scanner.Text())\n    nums := make([]int, len(parts))\n    for i, p := range parts { nums[i], _ = strconv.Atoi(p) }\n    if !scanner.Scan() { return }\n    target, _ := strconv.Atoi(strings.TrimSpace(scanner.Text()))\n    fmt.Println(search(nums, target))\n}\n",
+        "sampleTestCases": [
+            {
+                "input": "-1 0 3 5 9 12\n9",
+                "output": "4"
+            },
+            {
+                "input": "-1 0 3 5 9 12\n2",
+                "output": "-1"
+            }
+        ],
+        "hiddenTestCases": [
+            {
+                "input": "5\n5",
+                "output": "0"
+            },
+            {
+                "input": "2 5\n0",
+                "output": "-1"
+            },
+            {
+                "input": "1 3 5 7 9 11 13 15\n11",
+                "output": "5"
+            }
+        ]
+    },
+    {
+        "title": "Climbing Stairs",
+        "description": "You are climbing a staircase. It takes `n` steps to reach the top.\n\nEach time you can either climb `1` or `2` steps. In how many distinct ways can you climb to the top?",
+        "difficulty": "EASY",
+        "category": "1-D Dynamic Programming",
+        "moduleOrder": 5,
+        "tags": [
+            "Math",
+            "Dynamic Programming",
+            "Memoization"
+        ],
+        "inputFormat": "A single integer n.",
+        "outputFormat": "Total distinct ways as an integer.",
+        "constraints": "1 <= n <= 45",
+        "systemTemplate": "class Solution:\n    def climbStairs(self, n: int) -> int:\n        # Write your Python 3 code here\n        pass\n",
+        "driverCode": "import sys\n\ndef solve():\n    line = sys.stdin.read().strip()\n    if not line:\n        return\n    n = int(line)\n    sol = Solution()\n    print(sol.climbStairs(n))\n\nsolve()\n",
+        "jsTemplate": "class Solution {\n    climbStairs(n) {\n        // Write your JavaScript code here\n    }\n}\n",
+        "jsDriverCode": "const fs = require('fs');\nfunction main() {\n    const input = fs.readFileSync(0, 'utf-8').trim();\n    if (!input) return;\n    const sol = new Solution();\n    console.log(sol.climbStairs(Number(input)));\n}\nmain();\n",
+        "javaTemplate": "class Solution {\n    public int climbStairs(int n) {\n        // Write your Java code here\n        return 0;\n    }\n}\n",
+        "javaDriverCode": "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (!sc.hasNextInt()) return;\n        int n = sc.nextInt();\n        Solution sol = new Solution();\n        System.out.println(sol.climbStairs(n));\n    }\n}\n",
+        "cppTemplate": "class Solution {\npublic:\n    int climbStairs(int n) {\n        // Write your C++ code here\n        return 0;\n    }\n};\n",
+        "cppDriverCode": "#include <iostream>\nusing namespace std;\n\nint main() {\n    int n;\n    if (!(cin >> n)) return 0;\n    Solution sol;\n    cout << sol.climbStairs(n) << endl;\n    return 0;\n}\n",
+        "goTemplate": "package main\n\nfunc climbStairs(n int) int {\n    // Write your Go code here\n    return 0\n}\n",
+        "goDriverCode": "package main\nimport (\n    \"bufio\"\n    \"fmt\"\n    \"os\"\n    \"strconv\"\n    \"strings\"\n)\nfunc main() {\n    scanner := bufio.NewScanner(os.Stdin)\n    if !scanner.Scan() { return }\n    n, _ := strconv.Atoi(strings.TrimSpace(scanner.Text()))\n    fmt.Println(climbStairs(n))\n}\n",
+        "sampleTestCases": [
+            {
+                "input": "2",
+                "output": "2"
+            },
+            {
+                "input": "3",
+                "output": "3"
+            }
+        ],
+        "hiddenTestCases": [
+            {
+                "input": "1",
+                "output": "1"
+            },
+            {
+                "input": "4",
+                "output": "5"
+            },
+            {
+                "input": "5",
+                "output": "8"
+            },
+            {
+                "input": "10",
+                "output": "89"
+            }
+        ]
+    }
+]

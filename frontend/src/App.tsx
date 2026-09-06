@@ -7,21 +7,20 @@ import {
     LogOut,
     Play,
     History,
-    // MessageSquare,
     Mic,
     MicOff,
     Award,
-    // ChevronRight,
     Loader2,
-    // BookOpen,
     PhoneOff,
     Menu,
     X,
     Building,
     Target,
     CheckCircle2,
-    BarChart3
+    BarChart3,
+    Sparkles
 } from 'lucide-react';
+
 
 import {
     login,
@@ -41,6 +40,7 @@ import {
     generateCompanyPrepPlan,
     getActiveCompanyPrepPlan,
     getUserAnalytics,
+    generateProblem,
     type ChatMessage,
     type InterviewSession,
     type Problem,
@@ -48,7 +48,8 @@ import {
     type Submission,
     type CompanyPrepPlan,
     type UserAnalyticsResponse
-} from './services/api'
+} from './services/api';
+
 
 
 
@@ -205,6 +206,14 @@ function App() {
     const [codingDifficulty, setCodingDifficulty] = useState<string>('all');
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [activeConsoleTab, setActiveConsoleTab] = useState<'output' | 'submissions'>('output');
+
+    // AI Problem Generator Modal States
+    const [showAiGenModal, setShowAiGenModal] = useState(false);
+    const [aiGenTopic, setAiGenTopic] = useState('Sliding Window');
+    const [aiGenDifficulty, setAiGenDifficulty] = useState<'EASY' | 'MEDIUM' | 'HARD'>('MEDIUM');
+    const [aiGenCompany, setAiGenCompany] = useState('Google');
+    const [aiGenLoading, setAiGenLoading] = useState(false);
+
 
     // Organization Prep States
     const [companyPrepPlan, setCompanyPrepPlan] = useState<CompanyPrepPlan | null>(null);
@@ -459,11 +468,33 @@ function App() {
             else if (lang === 'java') template = selectedProblem.javaTemplate || 'public class Solution {\n    // Java Solution\n}';
             else if (lang === 'cpp') template = selectedProblem.cppTemplate || '// C++ Solution\n#include <iostream>\nusing namespace std;\n';
             else if (lang === 'go') template = selectedProblem.goTemplate || '// Go Solution\npackage main\nimport "fmt"\n';
-            
+
             setEditorCode(template);
             setExecutionResults([]);
         }
     };
+
+    const handleGenerateAiProblem = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!token || !aiGenTopic.trim()) return;
+        setAiGenLoading(true);
+        try {
+            const newProblem = await generateProblem({
+                topic: aiGenTopic,
+                difficulty: aiGenDifficulty,
+                company: aiGenCompany
+            }, token);
+            setProblems(prev => [newProblem, ...prev]);
+            setShowAiGenModal(false);
+            // Launch directly into the coding workspace for the new problem
+            handleStartCoding(newProblem);
+        } catch (err: any) {
+            alert(err.message || 'Failed to generate custom AI problem.');
+        } finally {
+            setAiGenLoading(false);
+        }
+    };
+
 
     // Load workspace with the user's latest code draft if they have run it before
     const handleStartCoding = async (problem: Problem) => {
@@ -1469,18 +1500,18 @@ function App() {
                                                 Structured topic-by-topic algorithm curriculum. Check off questions as you master them!
                                             </p>
                                         </div>
-                                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                                             <input
                                                 type="text"
                                                 className="input-field"
                                                 placeholder="Search problem..."
-                                                style={{ width: '200px', padding: '8px 14px', fontSize: '0.875rem' }}
+                                                style={{ width: '180px', padding: '8px 14px', fontSize: '0.875rem' }}
                                                 value={codingSearch}
                                                 onChange={e => setCodingSearch(e.target.value)}
                                             />
                                             <select
                                                 className="input-field"
-                                                style={{ width: '140px', padding: '8px 12px', fontSize: '0.875rem' }}
+                                                style={{ width: '130px', padding: '8px 12px', fontSize: '0.875rem' }}
                                                 value={codingDifficulty}
                                                 onChange={e => setCodingDifficulty(e.target.value)}
                                             >
@@ -1489,7 +1520,25 @@ function App() {
                                                 <option value="medium">Medium</option>
                                                 <option value="hard">Hard</option>
                                             </select>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAiGenModal(true)}
+                                                className="btn-primary"
+                                                style={{
+                                                    padding: '8px 16px',
+                                                    fontSize: '0.875rem',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '8px',
+                                                    background: 'linear-gradient(135deg, var(--accent-violet), #ec4899)',
+                                                    border: 'none',
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                            >
+                                                <Sparkles size={16} /> Generate AI Challenge
+                                            </button>
                                         </div>
+
                                     </div>
 
                                     {/* Calculated Overall Progress Stats */}
@@ -1514,6 +1563,129 @@ function App() {
                                         );
                                     })()}
                                 </div>
+                                {showAiGenModal && (
+                                    <div style={{
+                                        position: 'fixed',
+                                        inset: 0,
+                                        background: 'rgba(0, 0, 0, 0.75)',
+                                        backdropFilter: 'blur(8px)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        zIndex: 1000,
+                                        padding: '16px'
+                                    }}>
+                                        <div className="glass-card" style={{
+                                            width: '100%',
+                                            maxWidth: '520px',
+                                            padding: '28px',
+                                            borderRadius: '16px',
+                                            boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+                                            border: '1px solid rgba(139, 92, 246, 0.3)'
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: '#f8fafc' }}>
+                                                    <Sparkles style={{ color: 'var(--accent-violet)' }} size={20} />
+                                                    AI Coding Challenge Generator
+                                                </h3>
+                                                <button
+                                                    onClick={() => setShowAiGenModal(false)}
+                                                    style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                                                >
+                                                    <X size={20} />
+                                                </button>
+                                            </div>
+
+                                            <form onSubmit={handleGenerateAiProblem} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                                                        DSA Topic / Algorithm Pattern
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        className="input-field"
+                                                        placeholder="e.g. Sliding Window, Graph BFS, Trie, Dynamic Programming"
+                                                        value={aiGenTopic}
+                                                        onChange={e => setAiGenTopic(e.target.value)}
+                                                        required
+                                                    />
+                                                </div>
+
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                                                            Difficulty
+                                                        </label>
+                                                        <select
+                                                            className="input-field"
+                                                            value={aiGenDifficulty}
+                                                            onChange={e => setAiGenDifficulty(e.target.value as any)}
+                                                        >
+                                                            <option value="EASY">Easy</option>
+                                                            <option value="MEDIUM">Medium</option>
+                                                            <option value="HARD">Hard</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                                                            Target Company
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            className="input-field"
+                                                            placeholder="e.g. Google, Meta, Amazon"
+                                                            value={aiGenCompany}
+                                                            onChange={e => setAiGenCompany(e.target.value)}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                    💡 Groq Llama 3.1 will synthesize an authentic problem description, multi-language starter stubs (Python, JS, Java, C++, Go), and hidden test cases.
+                                                </p>
+
+                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowAiGenModal(false)}
+                                                        className="btn-secondary"
+                                                        style={{ padding: '10px 16px' }}
+                                                        disabled={aiGenLoading}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        type="submit"
+                                                        className="btn-primary"
+                                                        style={{
+                                                            padding: '10px 20px',
+                                                            background: 'linear-gradient(135deg, var(--accent-violet), #ec4899)',
+                                                            border: 'none',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '8px'
+                                                        }}
+                                                        disabled={aiGenLoading || !aiGenTopic.trim()}
+                                                    >
+                                                        {aiGenLoading ? (
+                                                            <>
+                                                                <Loader2 className="animate-spin" size={16} />
+                                                                Generating Challenge...
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Sparkles size={16} />
+                                                                Generate & Solve
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                )}
+
 
                                 {/* Grouped Topic Modules List */}
                                 {(() => {

@@ -1,6 +1,7 @@
 package com.platform.cip.service;
 
 import com.platform.cip.document.Problem;
+import com.platform.cip.dto.GenerateProblemRequest;
 import com.platform.cip.dto.ProblemResponse;
 import com.platform.cip.repository.ProblemRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ public class ProblemService {
     private final ProblemRepository problemRepository;
     private final SubmissionService submissionService;
     private final UserProgressService userProgressService;
+    private final GroqService groqService;
 
     // Creates a new problem in the database (Admin/Developer endpoint)
     public Problem createProblem(Problem problem) {
@@ -26,8 +28,24 @@ public class ProblemService {
         return problemRepository.save(problem);
     }
 
-    // Fetches all problems, mapping them to safe responses and attaching
-    // solveStatus and isCompleted progress
+    // AI On-Demand Problem Generator
+    public ProblemResponse generateAndSaveProblem(GenerateProblemRequest request, String userId) {
+        Problem generated = groqService.generateCustomProblem(
+                request.getTopic(),
+                request.getDifficulty(),
+                request.getCompany()
+        );
+
+        // If title collision occurs, append a unique suffix
+        if (problemRepository.existsByTitle(generated.getTitle())) {
+            generated.setTitle(generated.getTitle() + " (" + System.currentTimeMillis() % 10000 + ")");
+        }
+
+        Problem saved = problemRepository.save(generated);
+        return convertToResponse(saved, "UNSOLVED", false);
+    }
+
+    // Fetches all problems, mapping them to safe responses and attaching solveStatus and isCompleted
     public List<ProblemResponse> getAllProblemsSafe(String userId) {
         Map<String, String> solveStatuses = submissionService.getSolveStatusesForUser(userId);
         java.util.Set<String> completedIds = userProgressService.getCompletedProblemIds(userId);
@@ -53,8 +71,7 @@ public class ProblemService {
         return convertToResponse(problem, status, isCompleted);
     }
 
-    // Direct helper method used internally by the Code Executor (needs access to
-    // hidden test cases)
+    // Direct helper method used internally by Code Executor (needs access to hidden test cases)
     public Problem getRawProblem(String id) {
         return problemRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Problem not found with ID: " + id));
@@ -73,6 +90,9 @@ public class ProblemService {
                 .constraints(problem.getConstraints())
                 .systemTemplate(problem.getSystemTemplate())
                 .jsTemplate(problem.getJsTemplate())
+                .javaTemplate(problem.getJavaTemplate())
+                .cppTemplate(problem.getCppTemplate())
+                .goTemplate(problem.getGoTemplate())
                 .sampleTestCases(problem.getSampleTestCases())
                 .solveStatus(solveStatus)
                 .category(problem.getCategory())

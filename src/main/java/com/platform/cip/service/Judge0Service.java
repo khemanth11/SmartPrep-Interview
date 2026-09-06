@@ -26,6 +26,7 @@ public class Judge0Service {
     @Value("${judge0.api.enabled:false}")
     private boolean enabled;
 
+    @SuppressWarnings("unused")
     private final ObjectMapper objectMapper;
 
     public boolean isEnabled() {
@@ -36,7 +37,8 @@ public class Judge0Service {
      * Map programming language strings to Judge0 Language IDs
      */
     public int getLanguageId(String language) {
-        if (language == null) return 71; // default Python
+        if (language == null)
+            return 71; // default Python
         switch (language.toLowerCase().trim()) {
             case "python":
             case "py":
@@ -62,7 +64,8 @@ public class Judge0Service {
         }
     }
 
-    public TestCaseExecutionResult execute(String code, String language, String input, String expectedOutput, int index) {
+    public TestCaseExecutionResult execute(String code, String language, String input, String expectedOutput,
+            int index) {
         long startTime = System.currentTimeMillis();
         try {
             int languageId = getLanguageId(language);
@@ -108,11 +111,16 @@ public class Judge0Service {
 
             String stdout = response.get("stdout") != null ? response.get("stdout").toString().trim() : "";
             String stderr = response.get("stderr") != null ? response.get("stderr").toString().trim() : "";
-            String compileOutput = response.get("compile_output") != null ? response.get("compile_output").toString().trim() : "";
-            
+            String compileOutput = response.get("compile_output") != null
+                    ? response.get("compile_output").toString().trim()
+                    : "";
+
             Map<?, ?> status = (Map<?, ?>) response.get("status");
-            int statusId = status != null && status.get("id") != null ? Integer.parseInt(status.get("id").toString()) : 0;
-            String statusDesc = status != null && status.get("description") != null ? status.get("description").toString() : "Unknown";
+            int statusId = status != null && status.get("id") != null ? Integer.parseInt(status.get("id").toString())
+                    : 0;
+            String statusDesc = status != null && status.get("description") != null
+                    ? status.get("description").toString()
+                    : "Unknown";
 
             boolean passed = statusId == 3;
             String errorMsg = null;

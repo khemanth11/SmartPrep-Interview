@@ -386,3 +386,19 @@ export async function getUserAnalytics(token: string): Promise<UserAnalyticsResp
     if (!res.ok) throw new Error('Failed to load candidate analytics');
     return res.json();
 }
+
+export async function generateProblem(
+    request: { topic: string; difficulty: string; company?: string },
+    token: string
+): Promise<Problem> {
+    const res = await fetch(`${BASE_URL}/problems/generate`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify(request),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to generate AI problem');
+    }
+    return res.json();
+}

@@ -2,6 +2,7 @@ package com.platform.cip.controller;
 
 import com.platform.cip.document.Problem;
 import com.platform.cip.document.User;
+import com.platform.cip.dto.GenerateProblemRequest;
 import com.platform.cip.dto.ProblemResponse;
 import com.platform.cip.service.ProblemService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,14 @@ public class ProblemController {
 
     private final ProblemService problemService;
     private final com.platform.cip.service.UserProgressService userProgressService;
+
+    // AI On-Demand Problem Generator endpoint
+    @PostMapping("/generate")
+    public ResponseEntity<ProblemResponse> generateProblem(
+            @RequestBody GenerateProblemRequest request,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(problemService.generateAndSaveProblem(request, user.getId()));
+    }
 
     // Admin endpoint to add new coding questions
     @PostMapping

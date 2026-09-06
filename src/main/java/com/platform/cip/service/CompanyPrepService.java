@@ -25,6 +25,7 @@ public class CompanyPrepService {
     private final UserProgressService userProgressService;
     private final GroqService groqService;
 
+    @SuppressWarnings("unused")
     public CompanyPrepPlan generatePrepPlan(String userId, CompanyPrepRequest request) {
         List<Problem> availableProblems = new ArrayList<>(problemRepository.findAll());
         Set<String> completedProblemIds = userProgressService.getCompletedProblemIds(userId);
@@ -40,20 +41,31 @@ public class CompanyPrepService {
             Difficulty diff = p.getDifficulty() != null ? p.getDifficulty() : Difficulty.EASY;
 
             // Company specific weightings
-            if (comp.contains("cognizant") || comp.contains("tcs") || comp.contains("infosys") || comp.contains("wipro") || comp.contains("accenture")) {
-                if (title.contains("palindrome") || title.contains("reverse") || title.contains("fizzbuzz")) score += 30;
-                if (title.contains("two sum") || title.contains("parentheses")) score += 20;
-                if (diff == Difficulty.EASY) score += 15;
+            if (comp.contains("cognizant") || comp.contains("tcs") || comp.contains("infosys") || comp.contains("wipro")
+                    || comp.contains("accenture")) {
+                if (title.contains("palindrome") || title.contains("reverse") || title.contains("fizzbuzz"))
+                    score += 30;
+                if (title.contains("two sum") || title.contains("parentheses"))
+                    score += 20;
+                if (diff == Difficulty.EASY)
+                    score += 15;
             } else if (comp.contains("google") || comp.contains("meta") || comp.contains("uber")) {
-                if (diff == Difficulty.HARD) score += 30;
-                if (diff == Difficulty.MEDIUM) score += 20;
-                if (cat.contains("array") || cat.contains("stack") || cat.contains("graph")) score += 10;
+                if (diff == Difficulty.HARD)
+                    score += 30;
+                if (diff == Difficulty.MEDIUM)
+                    score += 20;
+                if (cat.contains("array") || cat.contains("stack") || cat.contains("graph"))
+                    score += 10;
             } else if (comp.contains("amazon")) {
-                if (title.contains("two sum") || title.contains("parentheses") || cat.contains("stack")) score += 30;
-                if (diff == Difficulty.MEDIUM) score += 20;
+                if (title.contains("two sum") || title.contains("parentheses") || cat.contains("stack"))
+                    score += 30;
+                if (diff == Difficulty.MEDIUM)
+                    score += 20;
             } else {
-                if (diff == Difficulty.EASY) score += 10;
-                if (diff == Difficulty.MEDIUM) score += 15;
+                if (diff == Difficulty.EASY)
+                    score += 10;
+                if (diff == Difficulty.MEDIUM)
+                    score += 15;
             }
             return -score; // Descending score order
         }));
@@ -67,13 +79,19 @@ public class CompanyPrepService {
 
             String reason;
             if (comp.contains("cognizant")) {
-                reason = String.format("Frequently asked in Cognizant %s technical assessment. Tests core string/array logic.", request.getRole());
+                reason = String.format(
+                        "Frequently asked in Cognizant %s technical assessment. Tests core string/array logic.",
+                        request.getRole());
             } else if (comp.contains("amazon")) {
-                reason = String.format("High-frequency Amazon Leadership & SDE problem. Frequently evaluated in online assessments.", request.getRole());
+                reason = String.format(
+                        "High-frequency Amazon Leadership & SDE problem. Frequently evaluated in online assessments.",
+                        request.getRole());
             } else if (comp.contains("google")) {
-                reason = String.format("Matches Google L4 interview style. Evaluates optimal time & space complexity.", request.getRole());
+                reason = String.format("Matches Google L4 interview style. Evaluates optimal time & space complexity.",
+                        request.getRole());
             } else {
-                reason = String.format("High-frequency %s challenge (%s). Core technical requirement for %s.", categoryName, diffName, request.getCompanyName());
+                reason = String.format("High-frequency %s challenge (%s). Core technical requirement for %s.",
+                        categoryName, diffName, request.getCompanyName());
             }
 
             boolean isCompleted = completedProblemIds.contains(problem.getId());
@@ -89,13 +107,13 @@ public class CompanyPrepService {
                     .build());
         }
 
-        // Call Groq LLM to generate custom AI strategy summary for this exact company & role
+        // Call Groq LLM to generate custom AI strategy summary for this exact company &
+        // role
         String aiStrategySummary = groqService.generateCompanyStrategySummary(
                 request.getCompanyName(),
                 request.getRole(),
                 request.getExamDate(),
-                request.getJobDescription()
-        );
+                request.getJobDescription());
 
         CompanyPrepPlan plan = CompanyPrepPlan.builder()
                 .userId(userId)

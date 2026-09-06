@@ -24,6 +24,9 @@ public class ProblemResponse {
     private String constraints;
     private String systemTemplate;
     private String jsTemplate;
+    private String javaTemplate;
+    private String cppTemplate;
+    private String goTemplate;
     private List<TestCase> sampleTestCases;
     private String solveStatus;
     private String category;
